@@ -218,6 +218,7 @@ python coursera_dl.py --browser firefox course-name
 Export cookies manually using a browser extension:
 
 1. Install a cookie export extension (e.g., "EditThisCookie", "Get cookies.txt")
+([Recommended](https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaplmfkghagebokkhpjpoebhdledlfi))
 2. Log into Coursera
 3. Export cookies in Netscape format
 4. Save as `coursera_cookies.txt`
