@@ -8,31 +8,36 @@ import os
 import pickle
 from os import path
 
+
 class SimpleDB:
-    def __init__(self, filename='data.bin'):
-        self.filename = path.abspath(path.join(path.dirname(__file__), filename)) # use this, so that, in bundled package the file is in the same directory as the script also
+    def __init__(self, filename="data.bin"):
+        self.filename = path.abspath(
+            path.join(path.dirname(__file__), filename)
+        )  # use this, so that, in bundled package the file is in the same directory as the script also
         self._data = self._load()
 
     def _load(self):
         """Load data from the file, or initialize an empty dict if file doesn't exist."""
         if not os.path.exists(self.filename):
             # create a database with default values
-            self._save({
-                'browser': 'edge',
-                'argdict':{
-                    'ca': '',
-                    'classname': '',
-                    'path': '',
-                    'video_resolution': '720p',
-                    'sl': 'en'
+            self._save(
+                {
+                    "browser": "edge",
+                    "argdict": {
+                        "ca": "",
+                        "classname": "",
+                        "path": "",
+                        "video_resolution": "720p",
+                        "sl": "en",
+                    },
                 }
-            })
-        with open(self.filename, 'rb') as f:
+            )
+        with open(self.filename, "rb") as f:
             return pickle.load(f)
 
     def _save(self, data):
         """Save current data to file."""
-        with open(self.filename, 'wb') as f:
+        with open(self.filename, "wb") as f:
             pickle.dump(data, f)
 
     def create(self, key, value):
@@ -52,7 +57,7 @@ class SimpleDB:
         Raises KeyError if the key path is invalid.
         """
         if isinstance(key_path, str):
-            key_path = key_path.split('.')  # support dot notation
+            key_path = key_path.split(".")  # support dot notation
 
         data_ref = self._data
         for key in key_path[:-1]:
@@ -62,10 +67,11 @@ class SimpleDB:
 
         final_key = key_path[-1]
         if final_key not in data_ref:
-            raise KeyError(f"Key '{final_key}' not found in path '{'.'.join(key_path)}'.")
+            raise KeyError(
+                f"Key '{final_key}' not found in path '{'.'.join(key_path)}'."
+            )
         data_ref[final_key] = value
         self._save(self._data)
-
 
     def delete(self, key):
         """Delete a key-value pair."""
@@ -80,9 +86,10 @@ class SimpleDB:
         return dict(self._data)
 
     def get_remote_config(self):
-        return self.read('api_key'), self.read('project_id')
+        return self.read("api_key"), self.read("project_id")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     db = SimpleDB()
 
     # db.create('username', 'alice')
@@ -94,4 +101,4 @@ if __name__ == '__main__':
     # db.delete('username')
     # print(db.read('username'))  # None
 
-    print(db.get_full_db())        # {}
+    print(db.get_full_db())  # {}

@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-
 """
 Manages the credential information (passwords, etc).
 """
 
 import getpass
-import logging
 import os
-import platform
 
 
 class CredentialsError(BaseException):
@@ -25,6 +21,7 @@ def _getenv_or_empty(s):
     """
     return os.getenv(s) or ""
 
+
 def get_credentials(username=None, password=None):
     """
     Return valid username, password tuple.
@@ -34,10 +31,11 @@ def get_credentials(username=None, password=None):
 
     if not username:
         raise CredentialsError(
-            'Please provide a username with the -u option, '
-            'or a CAUTH cookie with the --cauth option')
+            "Please provide a username with the -u option, "
+            "or a CAUTH cookie with the --cauth option"
+        )
 
     if not password:
-        password = getpass.getpass('Coursera password for {0}: '.format(username))
+        password = getpass.getpass(f"Coursera password for {username}: ")
 
     return username, password

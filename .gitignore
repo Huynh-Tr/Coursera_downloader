@@ -1,1 +1,46 @@
 Downloads/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Local authentication/session files
+coursera_cookies.txt
+*.cookies.txt
+
+# Common Python local env artifacts
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Type check / linters
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

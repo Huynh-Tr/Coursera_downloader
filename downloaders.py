@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module for download-related classes and functions.
 
@@ -6,8 +5,6 @@ We currently support an internal downloader written in Python with just the
 essential functionality and four "industrial-strength" external downloaders,
 namely, aria2c, axel, curl, and wget.
 """
-
-from __future__ import print_function
 
 import logging
 import math
@@ -18,11 +15,20 @@ import time
 
 import requests
 
+FILE_DOWNLOAD_TIMEOUT_SECONDS = 30
+FILE_DOWNLOAD_TIMEOUT_RETRIES = 1
+
+
+class DownloadTimeoutError(Exception):
+    """Raised when a file download exceeds the configured timeout."""
+
+
 #
 # Below are file downloaders, they are wrappers for external downloaders.
 #
 
-class Downloader(object):
+
+class Downloader:
     """
     Base downloader class.
 
@@ -35,7 +41,7 @@ class Downloader(object):
       >>> d.download('http://example.com', 'save/to/this/file')
     """
 
-    def _start_download(self, url, filename, resume):
+    def _start_download(self, url, filename, resume, timeout_seconds=None):
         """
         Actual method to download the given url to the given file.
         This method should be implemented by the subclass.
@@ -48,18 +54,67 @@ class Downloader(object):
         is aborted by the user, the partially downloaded file is also removed.
         """
 
-        try:
-            self._start_download(url, filename, resume)
-        except KeyboardInterrupt as e:
-            # keep the file if resume is True
-            if not resume:
-                logging.info('Keyboard Interrupt -- Removing partial file: %s',
-                             filename)
-                try:
-                    os.remove(filename)
-                except OSError:
-                    pass
-            raise e
+        timeout_seconds = FILE_DOWNLOAD_TIMEOUT_SECONDS
+        max_timeout_attempts = FILE_DOWNLOAD_TIMEOUT_RETRIES + 1
+        timeout_attempt = 0
+        while timeout_attempt < max_timeout_attempts:
+            try:
+                return self._start_download(
+                    url, filename, resume, timeout_seconds=timeout_seconds
+                )
+            except DownloadTimeoutError:
+                timeout_attempt += 1
+                if timeout_attempt >= max_timeout_attempts:
+                    logging.warning(
+                        "Skipping %s after %d timeout attempts (%ss each).",
+                        filename,
+                        max_timeout_attempts,
+                        timeout_seconds,
+                    )
+                    return False
+                logging.warning(
+                    "Download timed out for %s (attempt %d/%d). Retrying...",
+                    filename,
+                    timeout_attempt,
+                    max_timeout_attempts,
+                )
+                if not resume:
+                    try:
+                        os.remove(filename)
+                    except OSError:
+                        pass
+            except KeyboardInterrupt as e:
+                # keep the file if resume is True
+                if not resume:
+                    logging.info(
+                        "Keyboard Interrupt -- Removing partial file: %s", filename
+                    )
+                    try:
+                        os.remove(filename)
+                    except OSError:
+                        pass
+                raise e
+            except requests.exceptions.Timeout:
+                timeout_attempt += 1
+                if timeout_attempt >= max_timeout_attempts:
+                    logging.warning(
+                        "Skipping %s after %d timeout attempts (%ss each).",
+                        filename,
+                        max_timeout_attempts,
+                        timeout_seconds,
+                    )
+                    return False
+                logging.warning(
+                    "Request timed out for %s (attempt %d/%d). Retrying...",
+                    filename,
+                    timeout_attempt,
+                    max_timeout_attempts,
+                )
+                if not resume:
+                    try:
+                        os.remove(filename)
+                    except OSError:
+                        pass
 
 
 class ExternalDownloader(Downloader):
@@ -92,11 +147,10 @@ class ExternalDownloader(Downloader):
         """
 
         req = requests.models.Request()
-        req.method = 'GET'
+        req.method = "GET"
         req.url = url
 
-        cookie_values = requests.cookies.get_cookie_header(
-            self.session.cookies, req)
+        cookie_values = requests.cookies.get_cookie_header(self.session.cookies, req)
 
         if cookie_values:
             self._add_cookies(command, cookie_values)
@@ -130,23 +184,36 @@ class ExternalDownloader(Downloader):
         except FileNotFoundError:
             raise RuntimeError(f"Downloader '{self.bin}' not found")
 
-        if(ret.returncode != 0):
-            raise RuntimeError(f"Downloader '{self.bin}' returned a non-zero exit status")
+        if ret.returncode != 0:
+            raise RuntimeError(
+                f"Downloader '{self.bin}' returned a non-zero exit status"
+            )
 
-    def _start_download(self, url, filename, resume):
+    def _start_download(self, url, filename, resume, timeout_seconds=None):
         command = self._create_command(url, filename)
         command.extend(self.downloader_arguments)
         self._prepare_cookies(command, url)
         if resume:
             self._enable_resume(command)
 
-        logging.debug('Executing %s: %s', self.bin, command)
+        logging.debug("Executing %s: %s", self.bin, command)
         try:
-            subprocess.call(command)
+            result = subprocess.run(command, timeout=timeout_seconds)
         except OSError as e:
-            msg = "{0}. Are you sure that '{1}' is the right bin?".format(
-                e, self.bin)
+            msg = f"{e}. Are you sure that '{self.bin}' is the right bin?"
             raise OSError(msg)
+        except subprocess.TimeoutExpired:
+            raise DownloadTimeoutError("Timed out while running external downloader")
+
+        if result.returncode != 0:
+            logging.warning(
+                "External downloader '%s' failed for %s with exit code %s",
+                self.bin,
+                filename,
+                result.returncode,
+            )
+            return False
+        return True
 
 
 class WgetDownloader(ExternalDownloader):
@@ -154,17 +221,16 @@ class WgetDownloader(ExternalDownloader):
     Uses wget, which is robust and gives nice visual feedback.
     """
 
-    bin = 'wget'
+    bin = "wget"
 
     def _enable_resume(self, command):
-        command.append('-c')
+        command.append("-c")
 
     def _add_cookies(self, command, cookie_values):
-        command.extend(['--header', "Cookie: " + cookie_values])
+        command.extend(["--header", "Cookie: " + cookie_values])
 
     def _create_command(self, url, filename):
-        return [self.bin, url, '-O', filename, '--no-cookies',
-                '--no-check-certificate']
+        return [self.bin, url, "-O", filename, "--no-cookies", "--no-check-certificate"]
 
 
 class CurlDownloader(ExternalDownloader):
@@ -172,16 +238,16 @@ class CurlDownloader(ExternalDownloader):
     Uses curl, which is robust and gives nice visual feedback.
     """
 
-    bin = 'curl'
+    bin = "curl"
 
     def _enable_resume(self, command):
-        command.extend(['-C', '-'])
+        command.extend(["-C", "-"])
 
     def _add_cookies(self, command, cookie_values):
-        command.extend(['--cookie', cookie_values])
+        command.extend(["--cookie", cookie_values])
 
     def _create_command(self, url, filename):
-        return [self.bin, url, '-k', '-#', '-L', '-o', filename]
+        return [self.bin, url, "-k", "-#", "-L", "-o", filename]
 
 
 class Aria2Downloader(ExternalDownloader):
@@ -190,18 +256,25 @@ class Aria2Downloader(ExternalDownloader):
     gets the job done much faster than the alternatives.
     """
 
-    bin = 'aria2c'
+    bin = "aria2c"
 
     def _enable_resume(self, command):
-        command.append('-c')
+        command.append("-c")
 
     def _add_cookies(self, command, cookie_values):
-        command.extend(['--header', "Cookie: " + cookie_values])
+        command.extend(["--header", "Cookie: " + cookie_values])
 
     def _create_command(self, url, filename):
-        return [self.bin, url, '-o', filename,
-                '--check-certificate=false', '--log-level=notice',
-                '--max-connection-per-server=4', '--min-split-size=1M']
+        return [
+            self.bin,
+            url,
+            "-o",
+            filename,
+            "--check-certificate=false",
+            "--log-level=notice",
+            "--max-connection-per-server=4",
+            "--min-split-size=1M",
+        ]
 
 
 class AxelDownloader(ExternalDownloader):
@@ -210,17 +283,16 @@ class AxelDownloader(ExternalDownloader):
     visual feedback and get the job done fast.
     """
 
-    bin = 'axel'
+    bin = "axel"
 
     def _enable_resume(self, command):
-        logging.warn('Resume download not implemented for this '
-                     'downloader!')
+        logging.warn("Resume download not implemented for this " "downloader!")
 
     def _add_cookies(self, command, cookie_values):
-        command.extend(['-H', "Cookie: " + cookie_values])
+        command.extend(["-H", "Cookie: " + cookie_values])
 
     def _create_command(self, url, filename):
-        return [self.bin, '-o', filename, '-n', '4', '-a', url]
+        return [self.bin, "-o", filename, "-n", "4", "-a", url]
 
 
 def format_bytes(bytes):
@@ -229,26 +301,26 @@ def format_bytes(bytes):
     Ripped from https://github.com/rg3/youtube-dl
     """
     if bytes is None:
-        return 'N/A'
+        return "N/A"
     if type(bytes) is str:
         bytes = float(bytes)
     if bytes == 0.0:
         exponent = 0
     else:
         exponent = int(math.log(bytes, 1024.0))
-    suffix = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'][exponent]
-    converted = float(bytes) / float(1024 ** exponent)
-    return '{0:.2f}{1}'.format(converted, suffix)
+    suffix = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"][exponent]
+    converted = float(bytes) / float(1024**exponent)
+    return f"{converted:.2f}{suffix}"
 
 
-class DownloadProgress(object):
+class DownloadProgress:
     """
     Report download progress.
     Inspired by https://github.com/rg3/youtube-dl
     """
 
     def __init__(self, total):
-        if total in [0, '0', None]:
+        if total in [0, "0", None]:
             self._total = None
         else:
             self._total = int(total)
@@ -281,18 +353,18 @@ class DownloadProgress(object):
 
     def calc_percent(self):
         if self._total is None:
-            return '--%'
+            return "--%"
         if self._total == 0:
-            return '100% done'
+            return "100% done"
         percentage = int(float(self._current) / float(self._total) * 100.0)
         done = int(percentage / 2)
-        return '[{0: <50}] {1}%'.format(done * '#', percentage)
+        return "[{0: <50}] {1}%".format(done * "#", percentage)
 
     def calc_speed(self):
         dif = self._now - self._start
         if self._current == 0 or dif < 0.001:  # One millisecond
-            return '---b/s'
-        return '{0}/s'.format(format_bytes(float(self._current) / dif))
+            return "---b/s"
+        return f"{format_bytes(float(self._current) / dif)}/s"
 
     def report_progress(self):
         """Report download progress."""
@@ -300,9 +372,9 @@ class DownloadProgress(object):
         total = format_bytes(self._total)
 
         speed = self.calc_speed()
-        total_speed_report = '{0} at {1}'.format(total, speed)
+        total_speed_report = f"{total} at {speed}"
 
-        report = '\r{0: <56} {1: >30}'.format(percent, total_speed_report)
+        report = f"\r{percent: <56} {total_speed_report: >30}"
 
         if self._finished:
             print(report)
@@ -321,7 +393,7 @@ class NativeDownloader(Downloader):
     def __init__(self, session):
         self.session = session
 
-    def _start_download(self, url, filename, resume=False):
+    def _start_download(self, url, filename, resume=False, timeout_seconds=None):
         # resume has no meaning if the file doesn't exists!
         resume = resume and os.path.exists(filename)
 
@@ -329,16 +401,20 @@ class NativeDownloader(Downloader):
         filesize = None
         if resume:
             filesize = os.path.getsize(filename)
-            headers['Range'] = 'bytes={}-'.format(filesize)
-            logging.info('Resume downloading %s -> %s', url, filename)
+            headers["Range"] = f"bytes={filesize}-"
+            logging.info("Resume downloading %s -> %s", url, filename)
         else:
-            logging.info('Downloading %s -> %s', url, filename)
+            logging.info("Downloading %s -> %s", url, filename)
 
         max_attempts = 3
         attempts_count = 0
-        error_msg = ''
+        error_msg = ""
         while attempts_count < max_attempts:
-            r = self.session.get(url, stream=True, headers=headers)
+            started_at = time.time()
+            request_timeout = (10, timeout_seconds) if timeout_seconds else None
+            r = self.session.get(
+                url, stream=True, headers=headers, timeout=request_timeout
+            )
 
             if r.status_code != 200:
                 # because in resume state we are downloading only a
@@ -350,21 +426,23 @@ class NativeDownloader(Downloader):
                 if resume and r.status_code == 206:
                     pass
                 elif resume and r.status_code == 416:
-                    logging.info('%s already downloaded', filename)
+                    logging.info("%s already downloaded", filename)
                     r.close()
                     return True
                 else:
-                    print('%s %s %s' % (r.status_code, url, filesize))
-                    logging.warn('Probably the file is missing from the AWS '
-                                 'repository...  waiting.')
+                    print("%s %s %s" % (r.status_code, url, filesize))
+                    logging.warn(
+                        "Probably the file is missing from the AWS "
+                        "repository...  waiting."
+                    )
 
                     if r.reason:
-                        error_msg = r.reason + ' ' + str(r.status_code)
+                        error_msg = r.reason + " " + str(r.status_code)
                     else:
-                        error_msg = 'HTTP Error ' + str(r.status_code)
+                        error_msg = "HTTP Error " + str(r.status_code)
 
                     wait_interval = 2 ** (attempts_count + 1)
-                    msg = 'Error downloading, will retry in {0} seconds ...'
+                    msg = "Error downloading, will retry in {0} seconds ..."
                     print(msg.format(wait_interval))
                     time.sleep(wait_interval)
                     attempts_count += 1
@@ -376,24 +454,30 @@ class NativeDownloader(Downloader):
                 # partial downloads.
                 resume = False
 
-            content_length = r.headers.get('content-length')
+            content_length = r.headers.get("content-length")
             chunk_sz = 1048576
             progress = DownloadProgress(content_length)
             progress.start()
-            f = open(filename, 'ab') if resume else open(filename, 'wb')
-            while True:
-                data = r.raw.read(chunk_sz, decode_content=True)
-                if not data:
-                    progress.stop()
-                    break
-                progress.report(r.raw.tell())
-                f.write(data)
-            f.close()
-            r.close()
+            f = open(filename, "ab") if resume else open(filename, "wb")
+            try:
+                while True:
+                    if timeout_seconds and (time.time() - started_at) > timeout_seconds:
+                        raise DownloadTimeoutError(
+                            f"Timed out while downloading {filename}"
+                        )
+                    data = r.raw.read(chunk_sz, decode_content=True)
+                    if not data:
+                        progress.stop()
+                        break
+                    progress.report(r.raw.tell())
+                    f.write(data)
+            finally:
+                f.close()
+                r.close()
             return True
 
         if attempts_count == max_attempts:
-            logging.warn('Skipping, can\'t download file ...')
+            logging.warn("Skipping, can't download file ...")
             logging.error(error_msg)
             return False
 
@@ -404,15 +488,18 @@ def get_downloader(session, class_name, args):
     """
 
     external = {
-        'wget': WgetDownloader,
-        'curl': CurlDownloader,
-        'aria2': Aria2Downloader,
-        'axel': AxelDownloader,
+        "wget": WgetDownloader,
+        "curl": CurlDownloader,
+        "aria2": Aria2Downloader,
+        "axel": AxelDownloader,
     }
 
     for bin, class_ in external.items():
         if getattr(args, bin):
-            return class_(session, bin=getattr(args, bin),
-                          downloader_arguments=args.downloader_arguments)
+            return class_(
+                session,
+                bin=getattr(args, bin),
+                downloader_arguments=args.downloader_arguments,
+            )
 
     return NativeDownloader(session)

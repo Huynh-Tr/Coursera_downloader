@@ -29,6 +29,11 @@ Files will be in: `./Downloads/YOUR-COURSE-NAME/`
 python download_course.py "https://www.coursera.org/learn/data-analytics-foundations"
 ```
 
+### Download via grouped package entrypoint:
+```bash
+python -m coursera_downloader.cli.main --cookies_file coursera_cookies.txt data-analytics-foundations
+```
+
 ### Download to specific folder:
 ```bash
 python download_course.py "https://www.coursera.org/learn/python-basics" "./my_courses"
@@ -76,6 +81,11 @@ python coursera_dl.py --save-edge-cookies coursera_cookies.txt
 - Make sure you're enrolled
 - Check cookie file is not empty
 
+**Q: Download appears stuck on one file?**
+- The downloader now enforces 30s timeout per file
+- It retries once and then skips the file automatically
+- Review failed URLs at the end of the run
+
 ---
 
 ## 📖 Full Documentation
@@ -114,5 +124,81 @@ python download_data_analytics_certificate.py
 ---
 
 **Happy Learning! 🎓**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

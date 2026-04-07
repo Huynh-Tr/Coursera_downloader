@@ -1,48 +1,32 @@
-# -*- coding: utf-8 -*-
-
 """
 This module provides utility functions that are used within the script.
 """
 
+import datetime
+import errno
+import html
+import logging
 import os
+import random
 import re
+import requests
+import string
 import sys
 import time
-import json
-import errno
-import random
-import string
-import logging
-import datetime
-
-
-from bs4 import BeautifulSoup as BeautifulSoup_
-from xml.sax.saxutils import unescape as sax_unescape
-
-import html
-from html.parser import HTMLParser
-from urllib.parse import ParseResult
-from urllib.parse import unquote_plus
-from urllib.parse import urlparse, urljoin
 from string import ascii_letters as string_ascii_letters
 from string import digits as string_digits
+from urllib.parse import ParseResult, unquote_plus, urljoin, urlparse
+from xml.sax.saxutils import unescape as sax_unescape
+
+from bs4 import BeautifulSoup as BeautifulSoup_
 
 from define import COURSERA_URL, WINDOWS_UNC_PREFIX
 
 # Force us of bs4 with html.parser
 
 
-def BeautifulSoup(page): return BeautifulSoup_(page, 'html.parser')
-
-
-def spit_json(obj, filename):
-    with open(filename, 'w') as file_object:
-        json.dump(obj, file_object, indent=4)
-
-
-def slurp_json(filename):
-    with open(filename) as file_object:
-        return json.load(file_object)
+def BeautifulSoup(page):
+    return BeautifulSoup_(page, "html.parser")
 
 
 def is_debug_run():
@@ -61,15 +45,12 @@ def random_string(length):
     """
     valid_chars = string_ascii_letters + string_digits
 
-    return ''.join(random.choice(valid_chars) for i in range(length))
+    return "".join(random.choice(valid_chars) for i in range(length))
 
 
 # Taken from: https://wiki.python.org/moin/EscapingHtml
 # escape() and unescape() takes care of &, < and >.
-HTML_ESCAPE_TABLE = {
-    '"': "&quot;",
-    "'": "&apos;"
-}
+HTML_ESCAPE_TABLE = {'"': "&quot;", "'": "&apos;"}
 
 HTML_UNESCAPE_TABLE = dict((v, k) for k, v in HTML_ESCAPE_TABLE.items())
 
@@ -96,31 +77,31 @@ def clean_filename(s, minimal_change=False):
     # Strip forbidden characters
     # https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
     s = (
-        s.replace(':', '-')
-        .replace('/', '-')
-        .replace('<', '-')
-        .replace('>', '-')
-        .replace('"', '-')
-        .replace('\\', '-')
-        .replace('|', '-')
-        .replace('?', '-')
-        .replace('*', '-')
-        .replace('\x00', '-')
-        .replace('\n', ' ')
+        s.replace(":", "-")
+        .replace("/", "-")
+        .replace("<", "-")
+        .replace(">", "-")
+        .replace('"', "-")
+        .replace("\\", "-")
+        .replace("|", "-")
+        .replace("?", "-")
+        .replace("*", "-")
+        .replace("\x00", "-")
+        .replace("\n", " ")
     )
 
     # Remove trailing dots and spaces; forbidden on Windows
-    s = s.rstrip(' .')
+    s = s.rstrip(" .")
 
     if minimal_change:
         return s
 
-    s = s.replace('(', '').replace(')', '')
-    s = s.rstrip('.')  # Remove excess of trailing dots
+    s = s.replace("(", "").replace(")", "")
+    s = s.rstrip(".")  # Remove excess of trailing dots
 
-    s = s.strip().replace(' ', '_')
-    valid_chars = '-_.()%s%s' % (string.ascii_letters, string.digits)
-    return ''.join(c for c in s if c in valid_chars)
+    s = s.strip().replace(" ", "_")
+    valid_chars = "-_.()%s%s" % (string.ascii_letters, string.digits)
+    return "".join(c for c in s if c in valid_chars)
 
 
 def normalize_path(path):
@@ -136,7 +117,7 @@ def normalize_path(path):
     @return: Normalized path.
     @rtype str
     """
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         return path
 
     if path.startswith(WINDOWS_UNC_PREFIX):
@@ -183,8 +164,8 @@ def clean_url(url):
     """
     parsed = urlparse(url.strip())
     reconstructed = ParseResult(
-        parsed.scheme, parsed.netloc, parsed.path,
-        params='', query='', fragment='')
+        parsed.scheme, parsed.netloc, parsed.path, params="", query="", fragment=""
+    )
     return reconstructed.geturl()
 
 
@@ -230,8 +211,7 @@ def total_seconds(td):
 
     Added for backward compatibility, pre 2.7.
     """
-    return (td.microseconds +
-            (td.seconds + td.days * 24 * 3600) * 10 ** 6) // 10 ** 6
+    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) // 10**6
 
 
 def make_coursera_absolute_url(url):
@@ -280,15 +260,35 @@ def print_ssl_error_message(exception):
 # Please read instructions on how to fix this error here:
 # https://github.com/coursera-dl/coursera-dl#sslerror-errno-1-_sslc504-error14094410ssl-routinesssl3_read_bytessslv3-alert-handshake-failure
 #####################################################################
-""" % (type(exception).__name__, str(exception))
+""" % (
+        type(exception).__name__,
+        str(exception),
+    )
     logging.error(message)
 
 
-##########################################################################
-import os
-import re
-import requests
-from urllib.parse import urlparse
+def _download_image_with_retry(img_url, headers, timeout_seconds=30, retry_count=1):
+    attempts = retry_count + 1
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.get(
+                img_url, headers=headers, timeout=(10, timeout_seconds)
+            )
+            response.raise_for_status()
+            return response
+        except requests.exceptions.Timeout:
+            logging.warning(
+                "Timeout (%ss) while downloading image %s (attempt %d/%d)",
+                timeout_seconds,
+                img_url,
+                attempt,
+                attempts,
+            )
+            if attempt >= attempts:
+                return None
+        except requests.exceptions.RequestException:
+            return None
+
 
 def process_notification_html(notification_html: str) -> str:
     """
@@ -300,13 +300,14 @@ def process_notification_html(notification_html: str) -> str:
     matches = re.findall(img_tag_pattern, notification_html)
 
     headers = {
-        'User-Agent': 'MyApp/1.0 (https://yourdomain.com; myemail@domain.com) Python requests'
+        "User-Agent": "MyApp/1.0 (https://yourdomain.com; myemail@domain.com) Python requests"
     }
 
     for i, img_url in enumerate(matches):
         try:
-            response = requests.get(img_url, headers=headers)
-            response.raise_for_status()
+            response = _download_image_with_retry(img_url, headers)
+            if response is None:
+                continue
 
             path = urlparse(img_url).path
             ext = os.path.splitext(path)[1]
@@ -319,7 +320,7 @@ def process_notification_html(notification_html: str) -> str:
                 f.write(response.content)
 
             notification_html = notification_html.replace(img_url, local_filename)
-        except Exception as e:
+        except Exception:
             # print(f"Failed to download image {img_url}: {e}")
             pass
     return notification_html

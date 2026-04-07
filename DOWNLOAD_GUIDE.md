@@ -1,7 +1,3 @@
-1. cookies: https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaplmfkghagebokkhpjpoebhdledlfi
-2. export Netscape copy to coursera_cookies.txt
-3. python download_course.py "https://www.coursera.org/learn/dlai-data-storytelling/- python download_course.py "https://www.coursera.org/learn/ml-intro" "./Downloads" "./coursera_cookies.txt"
-
 # Coursera Course Downloader - Quick Guide
 
 This guide shows you how to easily download Coursera courses using the provided Python script.
@@ -218,6 +214,13 @@ https://www.coursera.org/learn/course-name
 2. Verify you're enrolled in the course
 3. Close Edge browser before extracting cookies
 4. Try manually exporting cookies using a browser extension
+
+### Problem: "One file takes too long and blocks progress"
+**Solution:**
+1. Per-file timeout is enforced at 30 seconds
+2. On timeout, downloader retries once
+3. If it still times out, the file is skipped and downloader continues
+4. Check the failed URL report printed at the end
 
 ## Advanced Usage
 

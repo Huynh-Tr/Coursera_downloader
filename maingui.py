@@ -1,36 +1,52 @@
 __version__ = "3.0.1"
 
-import sys, requests
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QPushButton, QRadioButton,
-    QComboBox, QFileDialog, QMessageBox, QVBoxLayout, QHBoxLayout, QGridLayout, QAction, QGroupBox, QTextBrowser
-)
-from PyQt5.QtGui import QIcon, QCursor
-from PyQt5.QtCore import Qt
-from PyQt5.QtCore import pyqtSignal
-
-from utils import process_notification_html
-import general
-from coursera_dl import main_f
-
-import livedb
-from threading import Thread
+import sys
 import webbrowser
 from os import path
+from threading import Thread
+
+import requests
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QCursor, QIcon
+from PyQt5.QtWidgets import (
+    QAction,
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
+)
+
+import general
+import livedb
+from coursera_dl import main_f
+from utils import process_notification_html
 
 
 class MainWindow(QMainWindow):
-    
+
     # Signals
-    show_update_message = pyqtSignal(str,  str, str)
-    show_notification_signal = pyqtSignal(str)      # notification HTML
+    show_update_message = pyqtSignal(str, str, str)
+    show_notification_signal = pyqtSignal(str)  # notification HTML
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Coursera Full Course Downloader")
         self.setMinimumSize(500, 300)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint) # no maximize button
-        icon_path = path.abspath(path.join(path.dirname(__file__), 'icon/icon.ico'))
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowMaximizeButtonHint
+        )  # no maximize button
+        icon_path = path.abspath(path.join(path.dirname(__file__), "icon/icon.ico"))
         self.setWindowIcon(QIcon(icon_path))
 
         self.shouldResume = False
@@ -40,10 +56,11 @@ class MainWindow(QMainWindow):
         self.allowed_browsers = general.ALLOWED_BROWSERS
 
         from localdb import SimpleDB
-        self.localdb  = SimpleDB('data.bin')
 
-        self.argdict = self.localdb.get_full_db()['argdict']
-        
+        self.localdb = SimpleDB("data.bin")
+
+        self.argdict = self.localdb.get_full_db()["argdict"]
+
         self.initUI()
 
         # signals
@@ -72,7 +89,6 @@ class MainWindow(QMainWindow):
         #     app_font = QFont(family, 9)
         #     QApplication.setFont(app_font)
 
-
         # Central widget
         central = QWidget()
         self.setCentralWidget(central)
@@ -80,8 +96,8 @@ class MainWindow(QMainWindow):
         central.setLayout(layout)
 
         # Set a smaller spacing for the main vertical layout
-        layout.setSpacing(5) # Reduced spacing between widgets
-        layout.setContentsMargins(10, 10, 10, 10) # Sets margins for a layout
+        layout.setSpacing(5)  # Reduced spacing between widgets
+        layout.setContentsMargins(10, 10, 10, 10)  # Sets margins for a layout
 
         # Info message
         info = QLabel(
@@ -95,11 +111,13 @@ class MainWindow(QMainWindow):
         browser_group = QGroupBox()
         browser_layout = QHBoxLayout()
         browser_group.setLayout(browser_layout)
-        browser_label = QLabel("<i><b>Select browser where you are logged in on coursera.org:</b></i>")
+        browser_label = QLabel(
+            "<i><b>Select browser where you are logged in on coursera.org:</b></i>"
+        )
         self.browser_combo = QComboBox()
         self.browser_combo.addItems(self.allowed_browsers)
         # Set default value from localdb if present
-        default_browser = self.localdb.read('browser')
+        default_browser = self.localdb.read("browser")
         if default_browser in self.allowed_browsers:
             self.browser_combo.setCurrentText(default_browser)
         browser_layout.addWidget(browser_label)
@@ -113,7 +131,7 @@ class MainWindow(QMainWindow):
 
         # Course URL
         grid.addWidget(QLabel("Course Home Page URL:"), 0, 0)
-        self.classname_edit = QLineEdit(self.localdb.read('argdict')['classname'])
+        self.classname_edit = QLineEdit(self.localdb.read("argdict")["classname"])
         grid.addWidget(self.classname_edit, 0, 1)
 
         # Download folder
@@ -122,7 +140,7 @@ class MainWindow(QMainWindow):
         # self.path_btn.setFixedSize(100, 20) # FIX: Removed fixed size to allow scaling
         self.path_btn.clicked.connect(self.getPath)
         grid.addWidget(self.path_btn, 1, 1)
-        self.path_label = QLabel(self.localdb.read('argdict')['path'])
+        self.path_label = QLabel(self.localdb.read("argdict")["path"])
         grid.addWidget(self.path_label, 2, 1)
 
         # Video resolution
@@ -138,9 +156,9 @@ class MainWindow(QMainWindow):
         res_layout.addWidget(self.res_360)
         grid.addWidget(res_group, 3, 1)
         # Set checked
-        if self.localdb.read('argdict')['video_resolution'] == '540p':
+        if self.localdb.read("argdict")["video_resolution"] == "540p":
             self.res_540.setChecked(True)
-        elif self.localdb.read('argdict')['video_resolution'] == '360p':
+        elif self.localdb.read("argdict")["video_resolution"] == "360p":
             self.res_360.setChecked(True)
         else:
             self.res_720.setChecked(True)
@@ -150,11 +168,20 @@ class MainWindow(QMainWindow):
         self.sl_combo = QComboBox()
         self.sl_combo.addItems(sorted(self.sllangschoices.keys()))
         # self.sl_combo.setFixedSize(150, 20) # FIX: Removed fixed size to allow scaling
-        key = next((k for k, v in self.sllangschoices.items() if v == self.localdb.read('argdict')['sl']), None) # find name of langugage from lang code
-        self.sl_combo.setCurrentText(key if key else 'English')  # Default to English if not found
+        key = next(
+            (
+                k
+                for k, v in self.sllangschoices.items()
+                if v == self.localdb.read("argdict")["sl"]
+            ),
+            None,
+        )  # find name of langugage from lang code
+        self.sl_combo.setCurrentText(
+            key if key else "English"
+        )  # Default to English if not found
         grid.addWidget(self.sl_combo, 4, 1)
 
-                # Download/Resume buttons
+        # Download/Resume buttons
         btn_layout = QHBoxLayout()
 
         # Spacer to push buttons to the right
@@ -177,7 +204,9 @@ class MainWindow(QMainWindow):
         # notification area
         self.notification_area = QTextBrowser()
         # self.notification_area.setMaximumSize(500, 100) # FIX: Changed to only set max height
-        self.notification_area.setMaximumHeight(100) # FIX: Constrain height only, allowing width to be flexible
+        self.notification_area.setMaximumHeight(
+            100
+        )  # FIX: Constrain height only, allowing width to be flexible
         self.notification_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.notification_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
@@ -206,21 +235,30 @@ class MainWindow(QMainWindow):
         livedb.log_usage_info(id_token)
 
         self.notification = livedb.get_notification(id_token)
-        self.show_notification_signal.emit(self.notification)  
+        self.show_notification_signal.emit(self.notification)
 
-        update_available, latest_version, latest_version_build_url, update_msg = livedb.check_for_update(id_token)
+        update_available, latest_version, latest_version_build_url, update_msg = (
+            livedb.check_for_update(id_token)
+        )
 
         if update_available:
             # Emit the signal with the latest_version string
-            if self.localdb.read('show_update_prompt') != 'false':
-                self.show_update_message.emit(latest_version, latest_version_build_url, update_msg)
+            if self.localdb.read("show_update_prompt") != "false":
+                self.show_update_message.emit(
+                    latest_version, latest_version_build_url, update_msg
+                )
             else:
-                self.footer_msg = self.footer_msg + f'   * Update available. <a href="{latest_version_build_url}">Click to update.</a>'
+                self.footer_msg = (
+                    self.footer_msg
+                    + f'   * Update available. <a href="{latest_version_build_url}">Click to update.</a>'
+                )
                 self.footer_label.setText(self.footer_msg)
 
-    def display_update_message(self, latest_version, latest_version_build_url=None, update_msg=None):
+    def display_update_message(
+        self, latest_version, latest_version_build_url=None, update_msg=None
+    ):
         msg_box = QMessageBox(self)
-        
+
         msg_box.setWindowTitle("Update Available")
         msg_box.setText(
             f"A new version ({latest_version}) is available. Please update the app."
@@ -228,9 +266,11 @@ class MainWindow(QMainWindow):
         )
 
         update_btn = msg_box.addButton("Update", QMessageBox.AcceptRole)
-        dont_show_again_btn = msg_box.addButton("Don't show again", QMessageBox.DestructiveRole)
-        later_btn = msg_box.addButton("Later", QMessageBox.RejectRole)
-        
+        dont_show_again_btn = msg_box.addButton(
+            "Don't show again", QMessageBox.DestructiveRole
+        )
+        _ = msg_box.addButton("Later", QMessageBox.RejectRole)
+
         msg_box.exec_()
 
         clicked = msg_box.clickedButton()
@@ -240,8 +280,8 @@ class MainWindow(QMainWindow):
 
         elif clicked == dont_show_again_btn:
             # Save preference to local database
-            self.localdb.create('show_update_prompt', 'false')
-        
+            self.localdb.create("show_update_prompt", "false")
+
         # TODO: add do not show again checkbox
         # TODO: maybe close the app when update button is clicked
 
@@ -255,7 +295,7 @@ class MainWindow(QMainWindow):
             self.notification_area.hide()
         else:
             # self.setMinimumSize(500, 400)  # FIX: Removed this line. The layout will handle resizing.
-        
+
             # Process notification HTML to download images and replace src if there is an <img> tag
             processed_notification = process_notification_html(self.notification)
 
@@ -263,29 +303,37 @@ class MainWindow(QMainWindow):
             self.notification_area.setVisible(True)
             self.notification_area.setOpenExternalLinks(True)
             self.notification_area.setCursor(QCursor(Qt.PointingHandCursor))
-            self.notification_area.anchorClicked.connect(lambda url: webbrowser.open(url.toString()))
+            self.notification_area.anchorClicked.connect(
+                lambda url: webbrowser.open(url.toString())
+            )
 
     # About and Help dialogs
     def show_about(self):
         from gui_components.about_text import get_about_text
+
         about_text = get_about_text(__version__)
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("About - Coursera Full Course Downloader")
         dlg.setTextFormat(Qt.RichText)
-        dlg.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
+        dlg.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
+        )
         dlg.setText(about_text)
         dlg.setStandardButtons(QMessageBox.Ok)
         dlg.exec_()
 
     def show_help(self):
         from gui_components.help_text import get_help_text
+
         help_text = get_help_text()
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Help - Coursera Full Course Downloader")
         dlg.setTextFormat(Qt.RichText)
-        dlg.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
+        dlg.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
+        )
         dlg.setText(help_text)
         dlg.setStandardButtons(QMessageBox.Ok)
         dlg.exec_()
@@ -294,46 +342,54 @@ class MainWindow(QMainWindow):
     def downloadBtnHandler(self):
         # load cauth code automatically and store it in inputvardict
         browser = self.browser_combo.currentText()
-        cauth = general.loadcauth('coursera.org', browser)
+        cauth = general.loadcauth("coursera.org", browser)
         if cauth == "":
-            QMessageBox.warning(self, "Error", "Could not load authentication from  the browser.\nPlease make sure you are logged in on coursera.org in the selected browser and running the application as administrator.")
+            QMessageBox.warning(
+                self,
+                "Error",
+                "Could not load authentication from  the browser.\nPlease make sure you are logged in on coursera.org in the selected browser and running the application as administrator.",
+            )
             return
-        
-        self.localdb.update('argdict.ca', cauth)
+
+        self.localdb.update("argdict.ca", cauth)
 
         # Get values from widgets
-        self.localdb.update('browser', browser)
-        self.localdb.update('argdict.classname', self.classname_edit.text())
-        self.localdb.update('argdict.path', self.path_label.text())
+        self.localdb.update("browser", browser)
+        self.localdb.update("argdict.classname", self.classname_edit.text())
+        self.localdb.update("argdict.path", self.path_label.text())
         if self.res_720.isChecked():
-            self.localdb.update('argdict.video_resolution', '720p')
+            self.localdb.update("argdict.video_resolution", "720p")
         elif self.res_540.isChecked():
-            self.localdb.update('argdict.video_resolution', '540p')
+            self.localdb.update("argdict.video_resolution", "540p")
         else:
-            self.localdb.update('argdict.video_resolution', '360p')
-        self.localdb.update('argdict.sl', self.sl_combo.currentText())
+            self.localdb.update("argdict.video_resolution", "360p")
+        self.localdb.update("argdict.sl", self.sl_combo.currentText())
 
         # check if path is valid
-        if self.localdb.read('argdict')['path'] == '':
-            QMessageBox.warning(self, "Error", "NO FOLDER SPECIFIED. PLEASE SELECT A FOLDER")
+        if self.localdb.read("argdict")["path"] == "":
+            QMessageBox.warning(
+                self, "Error", "NO FOLDER SPECIFIED. PLEASE SELECT A FOLDER"
+            )
             return
 
         # make argdict from inputvarlist
         self.argdict = {}
-        for key, value in self.localdb.get_full_db()['argdict'].items():
-            if key == 'classname':
-                courseurl = self.localdb.read('argdict')['classname']
+        for key, value in self.localdb.get_full_db()["argdict"].items():
+            if key == "classname":
+                courseurl = self.localdb.read("argdict")["classname"]
                 cname = general.urltoclassname(courseurl)
                 if cname == "":
-                    QMessageBox.warning(self, "Error", "INVALID COURSE NAME/ HOME PAGE URL")
+                    QMessageBox.warning(
+                        self, "Error", "INVALID COURSE NAME/ HOME PAGE URL"
+                    )
                     return
                 self.argdict[key] = cname
                 continue
-            if key == 'sl':
-                langcode = self.sllangschoices[self.localdb.read('argdict')['sl']]
-                if langcode == '':
-                    self.argdict['ignore-formats'] = "srt"
-                    self.argdict[key] = 'en'
+            if key == "sl":
+                langcode = self.sllangschoices[self.localdb.read("argdict")["sl"]]
+                if langcode == "":
+                    self.argdict["ignore-formats"] = "srt"
+                    self.argdict[key] = "en"
                     continue
                 else:
                     self.argdict[key] = langcode
@@ -342,28 +398,28 @@ class MainWindow(QMainWindow):
 
         # save the argdict to data.bin
         # self.saveargdic()
-        self.localdb.update('argdict', self.argdict)
+        self.localdb.update("argdict", self.argdict)
 
         # create command from argumentdict
         cmd = []
-        self.argdict = general.move_to_first(self.argdict, 'ca')
+        self.argdict = general.move_to_first(self.argdict, "ca")
         for item in self.argdict.items():
-            if (item[0] == 'video_resolution') or (item[0] == 'path'):
-                flag = '--' + item[0]
+            if (item[0] == "video_resolution") or (item[0] == "path"):
+                flag = "--" + item[0]
             else:
-                flag = '-' + item[0]
-            flag = flag.replace('_', '-')
-            if not 'classname' in flag:
+                flag = "-" + item[0]
+            flag = flag.replace("_", "-")
+            if "classname" not in flag:
                 cmd.append(flag)
             cmd.append(item[1])
 
-        cmd.append('--download-quizzes')
-        cmd.append('--download-notebooks')
-        cmd.append('--disable-url-skipping')
-        cmd.append('--unrestricted-filenames')
-        cmd.append('--combined-section-lectures-nums')
-        cmd.append('--jobs')
-        cmd.append('1')
+        cmd.append("--download-quizzes")
+        cmd.append("--download-notebooks")
+        cmd.append("--disable-url-skipping")
+        cmd.append("--unrestricted-filenames")
+        cmd.append("--combined-section-lectures-nums")
+        cmd.append("--jobs")
+        cmd.append("1")
 
         if self.shouldResume:
             cmd.append("--resume")
@@ -374,15 +430,27 @@ class MainWindow(QMainWindow):
         try:
             main_f(cmd)
         except KeyboardInterrupt:
-            QMessageBox.information(self, "Stopped", "DOWNLOAD STOPPED, YOU CAN RESUME YOUR DOWNLOAD LATER")
+            QMessageBox.information(
+                self, "Stopped", "DOWNLOAD STOPPED, YOU CAN RESUME YOUR DOWNLOAD LATER"
+            )
         except requests.exceptions.ConnectionError:
-            QMessageBox.warning(self, "Connection Error", "FAILED TO CONNECT TO COURSES SERVER. PLEASE CHECK YOUR INTERNET CONNECTION AND TRY AGAIN.")
+            QMessageBox.warning(
+                self,
+                "Connection Error",
+                "FAILED TO CONNECT TO COURSES SERVER. PLEASE CHECK YOUR INTERNET CONNECTION AND TRY AGAIN.",
+            )
         except requests.exceptions.HTTPError as e:
-            QMessageBox.warning(self, "HTTP Error", f"HTTP ERROR: {e}\nMAKE SURE YOU ARE LOGGED IN ON coursera.org ON A BROWSER AND YOU ARE ENROLLED INTO THE COURSE")
+            QMessageBox.warning(
+                self,
+                "HTTP Error",
+                f"HTTP ERROR: {e}\nMAKE SURE YOU ARE LOGGED IN ON coursera.org ON A BROWSER AND YOU ARE ENROLLED INTO THE COURSE",
+            )
         except requests.exceptions.SSLError as e:
             QMessageBox.warning(self, "SSL Error", f"SSL ERROR: {e}")
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"SOMETHING WENT WRONG, PLEASE TRY AGAIN\n{e}")
+            QMessageBox.warning(
+                self, "Error", f"SOMETHING WENT WRONG, PLEASE TRY AGAIN\n{e}"
+            )
 
     def resumeBtnHandler(self):
         self.shouldResume = True

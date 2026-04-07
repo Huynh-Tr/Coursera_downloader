@@ -1,0 +1,14 @@
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312", "py313"]
+extend-exclude = "/(Downloads|\\.venv|venv|build|dist)/"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["Downloads", ".venv", "venv", "build", "dist"]
+
+# Focus on likely bugs (Pyflakes + import/syntax errors). Style is Black's job.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = []

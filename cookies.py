@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Cookie handling module.
 """
@@ -17,18 +15,22 @@ except ImportError:
     from urllib3.poolmanager import PoolManager
 
 
-from io import StringIO
 from http import cookiejar as cookielib
-from define import CLASS_URL, AUTH_REDIRECT_URL, PATH_COOKIES, AUTH_URL_V3
+from io import StringIO
+
+from define import AUTH_REDIRECT_URL, AUTH_URL_V3, CLASS_URL, PATH_COOKIES
 from utils import mkdir_p, random_string
 
 # Import Edge cookie extraction functionality
 try:
     from edge_cookies import EdgeCookieExtractor, get_edge_cookies_for_coursera
+
     EDGE_COOKIES_AVAILABLE = True
 except ImportError:
     EDGE_COOKIES_AVAILABLE = False
-    logging.warning("Edge cookie extraction not available. Install required dependencies.")
+    logging.warning(
+        "Edge cookie extraction not available. Install required dependencies."
+    )
 
 # Monkey patch cookielib.Cookie.__init__.
 # Reason: The expires value may be a decimal string,
@@ -36,30 +38,48 @@ except ImportError:
 __original_init__ = cookielib.Cookie.__init__
 
 
-def __fixed_init__(self, version, name, value,
-                   port, port_specified,
-                   domain, domain_specified, domain_initial_dot,
-                   path, path_specified,
-                   secure,
-                   expires,
-                   discard,
-                   comment,
-                   comment_url,
-                   rest,
-                   rfc2109=False):
+def __fixed_init__(
+    self,
+    version,
+    name,
+    value,
+    port,
+    port_specified,
+    domain,
+    domain_specified,
+    domain_initial_dot,
+    path,
+    path_specified,
+    secure,
+    expires,
+    discard,
+    comment,
+    comment_url,
+    rest,
+    rfc2109=False,
+):
     if expires is not None:
         expires = float(expires)
-    __original_init__(self, version, name, value,
-                      port, port_specified,
-                      domain, domain_specified, domain_initial_dot,
-                      path, path_specified,
-                      secure,
-                      expires,
-                      discard,
-                      comment,
-                      comment_url,
-                      rest,
-                      rfc2109=False)
+    __original_init__(
+        self,
+        version,
+        name,
+        value,
+        port,
+        port_specified,
+        domain,
+        domain_specified,
+        domain_initial_dot,
+        path,
+        path_specified,
+        secure,
+        expires,
+        discard,
+        comment,
+        comment_url,
+        rest,
+        rfc2109=False,
+    )
 
 
 cookielib.Cookie.__init__ = __fixed_init__
@@ -97,20 +117,20 @@ def prepare_auth_headers(session, include_cauth=False):
     csrftoken = random_string(20)
 
     # Now make a call to the authenticator url.
-    csrf2cookie = 'csrf2_token_%s' % random_string(8)
+    csrf2cookie = "csrf2_token_%s" % random_string(8)
     csrf2token = random_string(24)
     cookie = "csrftoken=%s; %s=%s" % (csrftoken, csrf2cookie, csrf2token)
 
     if include_cauth:
-        CAUTH = session.cookies.get('CAUTH')
+        CAUTH = session.cookies.get("CAUTH")
         cookie = "CAUTH=%s; %s" % (CAUTH, cookie)
 
-    logging.debug('Forging cookie header: %s.', cookie)
+    logging.debug("Forging cookie header: %s.", cookie)
     headers = {
-        'Cookie': cookie,
-        'X-CSRFToken': csrftoken,
-        'X-CSRF2-Cookie': csrf2cookie,
-        'X-CSRF2-Token': csrf2token
+        "Cookie": cookie,
+        "X-CSRFToken": csrftoken,
+        "X-CSRF2-Cookie": csrf2cookie,
+        "X-CSRF2-Token": csrf2token,
     }
 
     return headers
@@ -124,12 +144,12 @@ def login(session, username, password, class_name=None):
         sessionid, maestro_login, maestro_login_flag
     """
 
-    logging.debug('Initiating login.')
+    logging.debug("Initiating login.")
     try:
-        session.cookies.clear('.coursera.org')
-        logging.debug('Cleared .coursera.org cookies.')
+        session.cookies.clear(".coursera.org")
+        logging.debug("Cleared .coursera.org cookies.")
     except KeyError:
-        logging.debug('There were no .coursera.org cookies to be cleared.')
+        logging.debug("There were no .coursera.org cookies to be cleared.")
 
     # Hit class url
     if class_name is not None:
@@ -143,26 +163,21 @@ def login(session, username, password, class_name=None):
 
     headers = prepare_auth_headers(session, include_cauth=False)
 
-    data = {
-        'email': username,
-        'password': password,
-        'webrequest': 'true'
-    }
+    data = {"email": username, "password": password, "webrequest": "true"}
 
     # Auth API V3
-    r = session.post(AUTH_URL_V3, data=data,
-                     headers=headers, allow_redirects=False)
+    r = session.post(AUTH_URL_V3, data=data, headers=headers, allow_redirects=False)
     try:
         r.raise_for_status()
 
         # Some how the order of cookies parameters are important
         # for coursera!!!
-        v = session.cookies.pop('CAUTH')
-        session.cookies.set('CAUTH', v)
+        v = session.cookies.pop("CAUTH")
+        session.cookies.set("CAUTH", v)
     except requests.exceptions.HTTPError as e:
-        raise AuthenticationFailed('Cannot login on coursera.org: %s' % e)
+        raise AuthenticationFailed("Cannot login on coursera.org: %s" % e)
 
-    logging.info('Logged in on coursera.org.')
+    logging.info("Logged in on coursera.org.")
 
 
 def down_the_wabbit_hole(session, class_name):
@@ -173,14 +188,14 @@ def down_the_wabbit_hole(session, class_name):
     auth_redirector_url = AUTH_REDIRECT_URL.format(class_name=class_name)
     r = session.get(auth_redirector_url)
 
-    logging.debug('Following %s to authenticate on class.coursera.org.',
-                  auth_redirector_url)
+    logging.debug(
+        "Following %s to authenticate on class.coursera.org.", auth_redirector_url
+    )
 
     try:
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        raise AuthenticationFailed(
-            'Cannot login on class.coursera.org: %s' % e)
+        raise AuthenticationFailed("Cannot login on class.coursera.org: %s" % e)
 
     logging.debug('Exiting "deep" authentication.')
 
@@ -194,13 +209,13 @@ def get_authentication_cookies(session, class_name, username, password):
     """
 
     # First, check if we already have the .coursera.org cookies.
-    if session.cookies.get('CAUTH', domain=".coursera.org"):
-        logging.debug('Already logged in on accounts.coursera.org.')
+    if session.cookies.get("CAUTH", domain=".coursera.org"):
+        logging.debug("Already logged in on accounts.coursera.org.")
     else:
         login(session, username, password, class_name=class_name)
 
     try:
-        session.cookies.clear('class.coursera.org', '/' + class_name)
+        session.cookies.clear("class.coursera.org", "/" + class_name)
     except KeyError:
         pass
 
@@ -209,9 +224,9 @@ def get_authentication_cookies(session, class_name, username, password):
     enough = do_we_have_enough_cookies(session.cookies, class_name)
 
     if not enough:
-        raise AuthenticationFailed('Did not find necessary cookies.')
+        raise AuthenticationFailed("Did not find necessary cookies.")
 
-    logging.info('Found authentication cookies.')
+    logging.info("Found authentication cookies.")
 
 
 def do_we_have_enough_cookies(cj, class_name):
@@ -219,10 +234,10 @@ def do_we_have_enough_cookies(cj, class_name):
     Check whether we have all the required cookies
     to authenticate on class.coursera.org.
     """
-    domain = 'class.coursera.org'
+    domain = "class.coursera.org"
     path = "/" + class_name
 
-    return cj.get('csrf_token', domain=domain, path=path) is not None
+    return cj.get("csrf_token", domain=domain, path=path) is not None
 
 
 def validate_cookies(session, class_name):
@@ -234,15 +249,15 @@ def validate_cookies(session, class_name):
     if not do_we_have_enough_cookies(session.cookies, class_name):
         return False
 
-    url = CLASS_URL.format(class_name=class_name) + '/class'
+    url = CLASS_URL.format(class_name=class_name) + "/class"
     r = session.head(url, allow_redirects=False)
 
     if r.status_code == 200:
         return True
     else:
-        logging.debug('Stale session.')
+        logging.debug("Stale session.")
         try:
-            session.cookies.clear('.coursera.org')
+            session.cookies.clear(".coursera.org")
         except KeyError:
             pass
         return False
@@ -255,12 +270,13 @@ def make_cookie_values(cj, class_name):
     """
     path = "/" + class_name
 
-    cookies = [c.name + '=' + c.value
-               for c in cj
-               if c.domain == "class.coursera.org"
-               and c.path == path]
+    cookies = [
+        c.name + "=" + c.value
+        for c in cj
+        if c.domain == "class.coursera.org" and c.path == path
+    ]
 
-    return '; '.join(cookies)
+    return "; ".join(cookies)
 
 
 def find_cookies_for_class(cookies_file, class_name):
@@ -272,8 +288,9 @@ def find_cookies_for_class(cookies_file, class_name):
     path = "/" + class_name
 
     def cookies_filter(c):
-        return c.domain == ".coursera.org" \
-            or (c.domain == "class.coursera.org" and c.path == path)
+        return c.domain == ".coursera.org" or (
+            c.domain == "class.coursera.org" and c.path == path
+        )
 
     cj = get_cookie_jar(cookies_file)
 
@@ -292,11 +309,11 @@ def load_cookies_file(cookies_file):
     loader is very particular about this string.
     """
 
-    logging.debug('Loading cookie file %s into memory.', cookies_file)
+    logging.debug("Loading cookie file %s into memory.", cookies_file)
 
     cookies = StringIO()
-    cookies.write('# Netscape HTTP Cookie File')
-    cookies.write(open(cookies_file, 'r').read())
+    cookies.write("# Netscape HTTP Cookie File")
+    cookies.write(open(cookies_file).read())
     cookies.flush()
     cookies.seek(0)
     return cookies
@@ -309,13 +326,13 @@ def get_cookie_jar(cookies_file):
     # nasty hack: cj.load() requires a filename not a file, but if I use
     # stringio, that file doesn't exist. I used NamedTemporaryFile before,
     # but encountered problems on Windows.
-    cj._really_load(cookies, 'StringIO.cookies', False, False)
+    cj._really_load(cookies, "StringIO.cookies", False, False)
 
     return cj
 
 
 def get_cookies_cache_path(username):
-    return os.path.join(PATH_COOKIES, username + '.txt')
+    return os.path.join(PATH_COOKIES, username + ".txt")
 
 
 def get_cookies_from_cache(username):
@@ -324,7 +341,7 @@ def get_cookies_from_cache(username):
     user.
     """
 
-    logging.debug('Trying to get cookies from the cache.')
+    logging.debug("Trying to get cookies from the cache.")
 
     path = get_cookies_cache_path(username)
     cj = requests.cookies.RequestsCookieJar()
@@ -332,10 +349,9 @@ def get_cookies_from_cache(username):
         cached_cj = get_cookie_jar(path)
         for cookie in cached_cj:
             cj.set_cookie(cookie)
-        logging.debug(
-            'Loaded cookies from %s', get_cookies_cache_path(username))
-    except IOError:
-        logging.debug('Could not load cookies from the cache.')
+        logging.debug("Loaded cookies from %s", get_cookies_cache_path(username))
+    except OSError:
+        logging.debug("Could not load cookies from the cache.")
 
     return cj
 
@@ -355,23 +371,25 @@ def write_cookies_to_cache(cj, username):
     cached_cj.save(path)
 
 
-def save_edge_cookies_to_file(filename='coursera_edge_cookies.txt'):
+def save_edge_cookies_to_file(filename="coursera_edge_cookies.txt"):
     """
     Extract cookies from Edge browser and save them to a file.
-    
+
     Args:
         filename (str): Output filename for the cookies
-        
+
     Returns:
         str: Path to the saved cookies file, or None if extraction failed
     """
     if not EDGE_COOKIES_AVAILABLE:
-        logging.error("Edge cookie extraction not available. Install required dependencies.")
+        logging.error(
+            "Edge cookie extraction not available. Install required dependencies."
+        )
         return None
-    
+
     try:
         extractor = EdgeCookieExtractor()
-        saved_path = extractor.save_cookies_to_file('coursera.org', filename)
+        saved_path = extractor.save_cookies_to_file("coursera.org", filename)
         logging.info(f"Edge cookies saved to {saved_path}")
         return saved_path
     except Exception as e:
@@ -379,11 +397,14 @@ def save_edge_cookies_to_file(filename='coursera_edge_cookies.txt'):
         return None
 
 
-def get_cookies_for_class(session, class_name,
-                          cookies_file=None,
-                          username=None,
-                          password=None,
-                          use_edge_cookies=False):
+def get_cookies_for_class(
+    session,
+    class_name,
+    cookies_file=None,
+    username=None,
+    password=None,
+    use_edge_cookies=False,
+):
     """
     Get the cookies for the given class.
 
@@ -393,46 +414,53 @@ def get_cookies_for_class(session, class_name,
     """
     if use_edge_cookies and EDGE_COOKIES_AVAILABLE:
         try:
-            logging.info('Attempting to extract cookies from Edge browser...')
+            logging.info("Attempting to extract cookies from Edge browser...")
             edge_cookies = get_edge_cookies_for_coursera()
             session.cookies.update(edge_cookies)
             # Ensure CAUTH is set if present in cookie jar
-            cauth_value = session.cookies.get('CAUTH')
+            cauth_value = session.cookies.get("CAUTH")
             if not cauth_value:
                 try:
                     import browser_cookie3
-                    logging.info('Trying browser_cookie3 fallback for CAUTH (Edge)...')
-                    cj = browser_cookie3.edge(domain_name='coursera.org')
+
+                    logging.info("Trying browser_cookie3 fallback for CAUTH (Edge)...")
+                    cj = browser_cookie3.edge(domain_name="coursera.org")
                     for c in cj:
-                        if c.name == 'CAUTH':
+                        if c.name == "CAUTH":
                             cauth_value = c.value
                             break
                     if cauth_value:
-                        session.cookies.set('CAUTH', cauth_value, domain='.coursera.org', path='/')
-                        logging.info('Set CAUTH from browser_cookie3.')
+                        session.cookies.set(
+                            "CAUTH", cauth_value, domain=".coursera.org", path="/"
+                        )
+                        logging.info("Set CAUTH from browser_cookie3.")
                 except Exception as e2:
-                    logging.debug('browser_cookie3 fallback failed: %s', e2)
+                    logging.debug("browser_cookie3 fallback failed: %s", e2)
 
-            logging.info('Successfully loaded cookies from Edge browser')
-            
+            logging.info("Successfully loaded cookies from Edge browser")
+
             # Validate the cookies
             if validate_cookies(session, class_name):
-                logging.info('Edge cookies are valid for authentication.')
+                logging.info("Edge cookies are valid for authentication.")
                 return
             else:
-                logging.warning('Edge cookies are not valid. Falling back to manual authentication.')
+                logging.warning(
+                    "Edge cookies are not valid. Falling back to manual authentication."
+                )
         except Exception as e:
-            logging.warning(f'Failed to extract Edge cookies: {e}. Falling back to manual authentication.')
-    
+            logging.warning(
+                f"Failed to extract Edge cookies: {e}. Falling back to manual authentication."
+            )
+
     if cookies_file:
         cookies = find_cookies_for_class(cookies_file, class_name)
         session.cookies.update(cookies)
-        logging.info('Loaded cookies from %s', cookies_file)
+        logging.info("Loaded cookies from %s", cookies_file)
     else:
         cookies = get_cookies_from_cache(username)
         session.cookies.update(cookies)
         if validate_cookies(session, class_name):
-            logging.info('Already authenticated.')
+            logging.info("Already authenticated.")
         else:
             get_authentication_cookies(session, class_name, username, password)
             write_cookies_to_cache(session.cookies, username)
@@ -445,7 +473,9 @@ class TLSAdapter(HTTPAdapter):
     """
 
     def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = PoolManager(num_pools=connections,
-                                       maxsize=maxsize,
-                                       block=block,
-                                       ssl_version=ssl.PROTOCOL_TLSv1_2)
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            ssl_version=ssl.PROTOCOL_TLSv1_2,
+        )
