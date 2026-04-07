@@ -15,8 +15,46 @@ from urllib.parse import quote_plus
 import attr
 import requests
 
-from cookies import prepare_auth_headers
-from define import (
+
+def get_reply(session, url, post=False, data=None, headers=None, quiet=False):
+    """
+    Download an HTML page using the requests session. Low-level function
+    that allows for flexible request configuration.
+    """
+    request_headers = {} if headers is None else headers
+    request = requests.Request(
+        "POST" if post else "GET", url, data=data, headers=request_headers
+    )
+    prepared_request = session.prepare_request(request)
+    reply = session.send(prepared_request)
+    try:
+        reply.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise
+    return reply
+
+
+def get_page(
+    session, url, json=False, post=False, data=None, headers=None, quiet=False, **kwargs
+):
+    url = url.format(**kwargs)
+    reply = get_reply(session, url, post=post, data=data, headers=headers, quiet=quiet)
+    return reply.json() if json else reply.text
+
+
+def get_page_and_url(session, url):
+    reply = get_reply(session, url)
+    return reply.text, reply.url
+
+
+def post_page_and_reply(session, url, data=None, headers=None, **kwargs):
+    url = url.format(**kwargs)
+    reply = get_reply(session, url, post=True, data=data, headers=headers)
+    return reply.text, reply
+
+
+from cookies import prepare_auth_headers  # noqa: E402
+from define import (  # noqa: E402
     IN_MEMORY_EXTENSION,
     IN_MEMORY_MARKER,
     INSTRUCTIONS_HTML_INJECTION_AFTER,
@@ -46,8 +84,7 @@ from define import (
     POST_OPENCOURSE_ONDEMAND_EXAM_SESSIONS,
     POST_OPENCOURSE_ONDEMAND_EXAM_SESSIONS_GET_STATE,
 )
-from network import get_page, get_reply, post_page_and_reply
-from utils import (
+from utils import (  # noqa: E402
     BeautifulSoup,
     clean_filename,
     clean_url,

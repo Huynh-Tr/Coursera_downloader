@@ -42,8 +42,13 @@ For further documentation and examples, visit the project's home at:
 
 
 import logging
+import os
+import re
 import shutil
+import sys
 import time
+import traceback
+from pathlib import Path
 
 # Test versions of some critical modules.
 # We may, perhaps, want to move these elsewhere.
@@ -353,3 +358,88 @@ def main_f(cmd):
             logging.info(
                 "%s (https://www.coursera.org/learn/%s)", class_name, class_name
             )
+
+
+def extract_course_slug(course_url):
+    """Return course slug from a Coursera /learn/ URL."""
+    pattern = r"coursera\.org/learn/([a-zA-Z0-9\-]+)"
+    match = re.search(pattern, course_url)
+    if match:
+        return match.group(1)
+    raise ValueError(
+        f"Invalid Coursera URL: {course_url}. "
+        "Expected format: https://www.coursera.org/learn/course-name"
+    )
+
+
+def download_coursera_course(course_url, output_path=None, cookies_file=None):
+    """
+    Download a course given a full Coursera learn URL (wrapper around main_f).
+
+    Uses default paths ./Downloads and ./coursera_cookies.txt when omitted.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
+    try:
+        course_slug = extract_course_slug(course_url)
+        logging.info("Extracted course slug: %s", course_slug)
+        if output_path is None:
+            output_path = os.path.join(os.getcwd(), "Downloads")
+        if cookies_file is None:
+            cookies_file = os.path.join(os.getcwd(), "coursera_cookies.txt")
+        if not os.path.exists(cookies_file):
+            logging.error("Cookies file not found: %s", cookies_file)
+            logging.error(
+                "Create it with: python coursera_dl.py --save-edge-cookies coursera_cookies.txt"
+            )
+            return False
+        os.makedirs(output_path, exist_ok=True)
+        logging.info("Output directory: %s", output_path)
+        argv0 = sys.argv[0] if sys.argv else "coursera_dl.py"
+        sys.argv = [
+            argv0,
+            "--cookies_file",
+            cookies_file,
+            "--path",
+            output_path,
+            course_slug,
+        ]
+        logging.info("Starting download for course: %s", course_slug)
+        logging.info("URL: %s", course_url)
+        logging.info("=" * 80)
+        main_f(None)
+        logging.info("=" * 80)
+        logging.info("Download completed for course: %s", course_slug)
+        course_dir = os.path.join(output_path, course_slug)
+        if os.path.exists(course_dir):
+            file_count = sum(1 for _ in Path(course_dir).rglob("*") if _.is_file())
+            logging.info("Total files downloaded: %s", file_count)
+            logging.info("Files saved to: %s", course_dir)
+        return True
+    except ValueError as e:
+        logging.error(str(e))
+        return False
+    except Exception as e:
+        logging.error("An error occurred during download: %s", e)
+        logging.error("%s", traceback.format_exc())
+        return False
+
+
+def _cli_main():
+    if len(sys.argv) >= 2:
+        first = sys.argv[1]
+        if first.startswith("http") and "coursera.org/learn/" in first:
+            course_url = first
+            output_path = sys.argv[2] if len(sys.argv) > 2 else None
+            cookies_file = sys.argv[3] if len(sys.argv) > 3 else None
+            ok = download_coursera_course(course_url, output_path, cookies_file)
+            sys.exit(0 if ok else 1)
+    main_f(sys.argv[1:])
+
+
+if __name__ == "__main__":
+    _cli_main()

@@ -48,7 +48,7 @@ This project is designed to help learners access their enrolled courses offline,
 
 ## 🗂️ Project layout
 
-The CLI and download logic live as Python modules in the repository root (for example `coursera_dl.py`, `api.py`, `workflow.py`, `downloaders.py`). Run the tool with `python coursera_dl.py` or the helper `python download_course.py` as documented below.
+The CLI and download logic live as Python modules in the repository root (for example `coursera_dl.py`, `api.py`, `workflow.py`, `downloaders.py`). Run `python coursera_dl.py` with flags or pass a full course URL as the first argument (see Quick Start).
 
 ## 🔧 Installation
 
@@ -100,7 +100,7 @@ python coursera_dl.py --save-edge-cookies coursera_cookies.txt
 
 **Step 2** - Download your course:
 ```bash
-python download_course.py "https://www.coursera.org/learn/YOUR-COURSE-NAME"
+python coursera_dl.py "https://www.coursera.org/learn/YOUR-COURSE-NAME"
 ```
 
 **Step 3** - Access your files:
@@ -168,7 +168,7 @@ python coursera_dl.py --cookies_file cookies.txt --list-courses
 Use the downloader programmatically in your Python scripts:
 
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 # Download a single course
 download_coursera_course("https://www.coursera.org/learn/machine-learning")

@@ -3,6 +3,7 @@ This module contains code that is related to command-line argument
 handling. The primary candidate is argument parser.
 """
 
+import getpass
 import logging
 import os
 import sys
@@ -12,7 +13,21 @@ import configargparse as argparse
 __courseradlversion__ = "0.12.0b0"
 # from maingui import __version__
 
-from credentials import CredentialsError, get_credentials
+
+class CredentialsError(BaseException):
+    pass
+
+
+def get_credentials(username=None, password=None):
+    if not username:
+        raise CredentialsError(
+            "Please provide a username with the -u option, "
+            "or a CAUTH cookie with the --cauth option"
+        )
+    if not password:
+        password = getpass.getpass(f"Coursera password for {username}: ")
+    return username, password
+
 
 LOCAL_CONF_FILE_NAME = "coursera-dl.conf"
 

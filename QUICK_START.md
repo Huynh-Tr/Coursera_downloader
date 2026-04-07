@@ -13,7 +13,7 @@ python coursera_dl.py --save-edge-cookies coursera_cookies.txt
 ### Step 2: Download a Course
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/YOUR-COURSE-NAME"
+python coursera_dl.py "https://www.coursera.org/learn/YOUR-COURSE-NAME"
 ```
 
 ### Step 3: Find Your Downloaded Files
@@ -26,7 +26,7 @@ Files will be in: `./Downloads/YOUR-COURSE-NAME/`
 
 ### Download a single course:
 ```bash
-python download_course.py "https://www.coursera.org/learn/data-analytics-foundations"
+python coursera_dl.py "https://www.coursera.org/learn/data-analytics-foundations"
 ```
 
 ### Download with the main CLI and a cookie file:
@@ -36,12 +36,12 @@ python coursera_dl.py --cookies_file coursera_cookies.txt data-analytics-foundat
 
 ### Download to specific folder:
 ```bash
-python download_course.py "https://www.coursera.org/learn/python-basics" "./my_courses"
+python coursera_dl.py "https://www.coursera.org/learn/python-basics" "./my_courses"
 ```
 
 ### Download multiple courses (Python script):
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 courses = [
     "https://www.coursera.org/learn/course-1",
@@ -98,7 +98,7 @@ python coursera_dl.py --save-edge-cookies coursera_cookies.txt
 
 ```python
 # download_data_analytics_certificate.py
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 # DeepLearning.AI Data Analytics Professional Certificate
 courses = [

@@ -1,18 +1,148 @@
 import abc
 import codecs
+import glob
 import logging
 import os
 import re
 import subprocess
 import time
+from urllib.parse import urlparse
 
 import requests
 
-from define import IN_MEMORY_MARKER
-from filtering import find_resources_to_get, skip_format_url
-from formatting import format_section, get_lecture_filename
-from playlist import create_m3u_playlist
+from define import FORMAT_MAX_LENGTH, IN_MEMORY_MARKER, TITLE_MAX_LENGTH
 from utils import is_course_complete, mkdir_p, normalize_path
+
+# --- filtering (merged from filtering.py) ---
+
+VALID_FORMATS = r"""^mp4$|
+                    ^pdf$|
+                    ^.?.?\.?txt$|
+                    ^.?.?\.?srt$|
+                    .*txt$|
+                    .*srt$|
+                    ^html?$|
+                    ^zip$|
+                    ^rar$|
+                    ^[ct]sv$|
+                    ^xlsx$|
+                    ^ipynb$|
+                    ^json$|
+                    ^pptx?$|
+                    ^docx?$|
+                    ^xls$|
+                    ^py$|
+                    ^Rmd$|
+                    ^Rdata$|
+                    ^wf1$"""
+NON_SIMPLE_FORMAT = r".*[^a-zA-Z0-9_-]"
+RE_VALID_FORMATS = re.compile(VALID_FORMATS, re.VERBOSE)
+RE_NON_SIMPLE_FORMAT = re.compile(NON_SIMPLE_FORMAT)
+
+
+def skip_format_url(format_, url):
+    if format_ == "":
+        return True
+    if ("mailto:" in url) and ("@" in url):
+        return True
+    parsed = urlparse(url)
+    if parsed.hostname == "localhost":
+        return True
+    if RE_VALID_FORMATS.match(format_):
+        return False
+    if RE_NON_SIMPLE_FORMAT.match(format_):
+        return True
+    if parsed.path in ("", "/"):
+        return True
+    return False
+
+
+def find_resources_to_get(lecture, file_formats, resource_filter, ignored_formats=None):
+    resources_to_get = []
+    if ignored_formats is None:
+        ignored_formats = []
+    if len(ignored_formats):
+        logging.info(
+            "The following file formats will be ignored: " + ",".join(ignored_formats)
+        )
+    for fmt, resources in lecture.items():
+        fmt0 = fmt
+        short_fmt = None
+        if "." in fmt:
+            short_fmt = fmt.split(".")[1]
+        if fmt in ignored_formats or (
+            short_fmt is not None and short_fmt in ignored_formats
+        ):
+            continue
+        if (
+            fmt in file_formats
+            or (short_fmt is not None and short_fmt in file_formats)
+            or "all" in file_formats
+        ):
+            for r in resources:
+                if resource_filter and r[1] and not re.search(resource_filter, r[1]):
+                    logging.debug("Skipping b/c of rf: %s %s", resource_filter, r[1])
+                    continue
+                resources_to_get.append((fmt0, r[0], r[1]))
+        else:
+            logging.debug("Skipping b/c format %s not in %s", fmt, file_formats)
+    return resources_to_get
+
+
+# --- formatting (merged from formatting.py) ---
+
+
+def format_section(num, section, class_name, verbose_dirs):
+    sec = "%02d_%s" % (num, section)
+    if verbose_dirs:
+        sec = class_name.upper() + "_" + sec
+    return sec
+
+
+def format_resource(num, name, title, fmt):
+    if title:
+        title = "_" + title
+    return "%02d_%s%s.%s" % (num, name, title, fmt)
+
+
+def format_combine_number_resource(secnum, lecnum, lecname, title, fmt):
+    if title:
+        title = "_" + title
+    return "%02d_%02d_%s%s.%s" % (secnum, lecnum, lecname, title, fmt)
+
+
+def get_lecture_filename(
+    combined_section_lectures_nums, section_dir, secnum, lecnum, lecname, title, fmt
+):
+    fmt = fmt[:FORMAT_MAX_LENGTH]
+    title = title[:TITLE_MAX_LENGTH]
+    if combined_section_lectures_nums:
+        lecture_filename = os.path.join(
+            section_dir,
+            format_combine_number_resource(secnum + 1, lecnum + 1, lecname, title, fmt),
+        )
+    else:
+        lecture_filename = os.path.join(
+            section_dir, format_resource(lecnum + 1, lecname, title, fmt)
+        )
+    return lecture_filename
+
+
+# --- playlist (merged from playlist.py) ---
+
+
+def create_m3u_playlist(section_dir):
+    path_to_return = os.getcwd()
+    for _path, subdirs, files in os.walk(section_dir):
+        os.chdir(_path)
+        globbed_videos = sorted(glob.glob("*.mp4"))
+        m3u_name = os.path.split(_path)[1] + ".m3u"
+        if len(globbed_videos):
+            with open(m3u_name, "w") as m3u:
+                for video in globbed_videos:
+                    m3u.write(video + "\n")
+            os.chdir(path_to_return)
+    os.chdir(path_to_return)
 
 
 def _iter_modules(modules, class_name, path, ignored_formats, args):

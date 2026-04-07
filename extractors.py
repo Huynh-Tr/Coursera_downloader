@@ -15,9 +15,9 @@ from api import (
     LessonsV1,
     ModulesV1,
     OnDemandCourseMaterialItemsV1,
+    get_page,
 )
 from define import OPENCOURSE_ONDEMAND_COURSE_MATERIALS_V2
-from network import get_page
 
 
 class PlatformExtractor:

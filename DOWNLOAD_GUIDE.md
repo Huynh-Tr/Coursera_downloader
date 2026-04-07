@@ -42,25 +42,25 @@ python coursera_dl.py --save-edge-cookies coursera_cookies.txt
 Download a course by providing its URL:
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/data-analytics-foundations"
+python coursera_dl.py "https://www.coursera.org/learn/data-analytics-foundations"
 ```
 
 **With custom output directory:**
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/python-for-data-analytics" "./my_courses"
+python coursera_dl.py "https://www.coursera.org/learn/python-for-data-analytics" "./my_courses"
 ```
 
 **With custom cookies file:**
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/applied-statistics" "./Downloads" "./my_cookies.txt"
+python coursera_dl.py "https://www.coursera.org/learn/applied-statistics" "./Downloads" "./my_cookies.txt"
 ```
 
 ### Method 2: Import as Function (Advanced)
 
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 # Simple download
 download_coursera_course("https://www.coursera.org/learn/data-analytics-foundations")
@@ -76,7 +76,7 @@ download_coursera_course(
 ### Method 3: Batch Download Multiple Courses
 
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 courses = [
     "https://www.coursera.org/learn/data-analytics-foundations",
@@ -123,7 +123,7 @@ download_coursera_course(course_url, output_path=None, cookies_file=None)
 ### Example 1: Quick Download
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/machine-learning"
+python coursera_dl.py "https://www.coursera.org/learn/machine-learning"
 ```
 
 This downloads the course to `./Downloads/machine-learning/`
@@ -131,7 +131,7 @@ This downloads the course to `./Downloads/machine-learning/`
 ### Example 2: Custom Location
 
 ```bash
-python download_course.py "https://www.coursera.org/learn/deep-learning" "D:/my_courses"
+python coursera_dl.py "https://www.coursera.org/learn/deep-learning" "D:/my_courses"
 ```
 
 This downloads to `D:/my_courses/deep-learning/`
@@ -141,7 +141,7 @@ This downloads to `D:/my_courses/deep-learning/`
 Create a file `my_download.py`:
 
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 # Download DeepLearning.AI Data Analytics Certificate courses
 courses = [
@@ -227,7 +227,7 @@ https://www.coursera.org/learn/course-name
 ### Check if URL is valid before downloading:
 
 ```python
-from download_course import extract_course_slug
+from coursera_dl import extract_course_slug
 
 try:
     slug = extract_course_slug("https://www.coursera.org/learn/my-course")
@@ -239,7 +239,7 @@ except ValueError as e:
 ### Download with error handling:
 
 ```python
-from download_course import download_coursera_course
+from coursera_dl import download_coursera_course
 
 courses = [
     "https://www.coursera.org/learn/course-1",
