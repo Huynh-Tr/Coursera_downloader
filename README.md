@@ -46,17 +46,9 @@ This project is designed to help learners access their enrolled courses offline,
 - **Smart Timeout Handling**: If a file takes longer than 30 seconds, retry once and skip it automatically so the course download can continue
 - **Customizable Options**: Configure video resolution, subtitle languages, output paths, and more
 
-## 🗂️ Project Organization
+## 🗂️ Project layout
 
-Core modules are now grouped under a package facade for easier navigation:
-
-- `coursera_downloader/cli` - CLI entrypoint wrappers
-- `coursera_downloader/core` - downloader/workflow/network wrappers
-- `coursera_downloader/extractors` - extraction and API wrappers
-- `coursera_downloader/auth` - cookies/auth wrappers
-- `coursera_downloader/utils` - helper/filter/format wrappers
-
-Backward compatibility is preserved: existing scripts like `coursera_dl.py` and `download_course.py` continue to work.
+The CLI and download logic live as Python modules in the repository root (for example `coursera_dl.py`, `api.py`, `workflow.py`, `downloaders.py`). Run the tool with `python coursera_dl.py` or the helper `python download_course.py` as documented below.
 
 ## 🔧 Installation
 
@@ -145,11 +137,6 @@ python coursera_dl.py --edge-cookies machine-learning
 Download using a cookie file:
 ```bash
 python coursera_dl.py --cookies_file coursera_cookies.txt deep-learning
-```
-
-Run using the grouped package entrypoint:
-```bash
-python -m coursera_downloader.cli.main --cookies_file coursera_cookies.txt deep-learning
 ```
 
 Download multiple courses:

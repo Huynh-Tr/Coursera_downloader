@@ -33,6 +33,32 @@ from coursera_dl import main_f
 from utils import process_notification_html
 
 
+def _about_dialog_text(version):
+    return f"""
+    <b>Coursera Full Course Downloader</b><br>
+    Version: {version}<br><br>
+    Developed by: Touhidul Islam<br>
+    Department of Electrical and Electronic Engineering,<br>Bangladesh University of Engineering and Technology (BUET)<br>
+    Email: <u>touhid3.1416@gmail.com</u>
+    """
+
+
+def _help_dialog_text():
+    return """
+    <b>USING THE PROGRAM:</b><br>
+    Using the program is very easy. Just enter the necessary things and hit download. Your download will start in a command prompt window. You can see the download progress in the command prompt window. It will take some moments for the processing to finish, and download to start.<br><br>
+    Use CTRL+V to paste URL.<br><br>
+    <b>STOP DOWNLOAD:</b><br>
+    Press CTRL+C on the command prompt window. It can take several seconds to stop the download in cases. Do not press CTRL+C multiple times.<br><br>
+    <b>RESUME DOWNLOAD:</b><br>
+    If you want to RESUME the download later on, just provide the same information and download folder as before, and click on the Resume button instead of download. Your download will be resumed from previous position.<br><br>
+    <b>IF THE DOWNLOAD SCREEN STALLS:</b><br>
+    If the download screen does not change and does not show update for some time, then click on the command prompt window and press any button, your download should resume.<br><br>
+    <b>You can not download an entire specialization. For specialization enter url of the course within it.</b><br><br>
+    <b>FOUND A BUG?</b> Feel free to email at <u>touhid3.1416@gmail.com</u>
+    """
+
+
 class MainWindow(QMainWindow):
 
     # Signals
@@ -309,9 +335,7 @@ class MainWindow(QMainWindow):
 
     # About and Help dialogs
     def show_about(self):
-        from gui_components.about_text import get_about_text
-
-        about_text = get_about_text(__version__)
+        about_text = _about_dialog_text(__version__)
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("About - Coursera Full Course Downloader")
@@ -324,9 +348,7 @@ class MainWindow(QMainWindow):
         dlg.exec_()
 
     def show_help(self):
-        from gui_components.help_text import get_help_text
-
-        help_text = get_help_text()
+        help_text = _help_dialog_text()
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Help - Coursera Full Course Downloader")

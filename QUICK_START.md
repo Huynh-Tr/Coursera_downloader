@@ -29,9 +29,9 @@ Files will be in: `./Downloads/YOUR-COURSE-NAME/`
 python download_course.py "https://www.coursera.org/learn/data-analytics-foundations"
 ```
 
-### Download via grouped package entrypoint:
+### Download with the main CLI and a cookie file:
 ```bash
-python -m coursera_downloader.cli.main --cookies_file coursera_cookies.txt data-analytics-foundations
+python coursera_dl.py --cookies_file coursera_cookies.txt data-analytics-foundations
 ```
 
 ### Download to specific folder:
